@@ -522,8 +522,14 @@
 
         // 生成风格化图片
         async function generateStyleImage() {
-            if (!selectedFile || !selectedStyle) {
-                showError('请选择图片和风格');
+            // 详细的验证逻辑
+            if (!selectedFile) {
+                showError('请先选择要处理的图片');
+                return;
+            }
+            
+            if (!selectedStyle) {
+                showError('请先选择一种风格');
                 return;
             }
 
@@ -565,7 +571,7 @@
                     ctx.font = '24px Arial';
                     ctx.textAlign = 'center';
                     ctx.fillText('测试模式', 256, 256);
-                    ctx.fillText(`风格: ${styleConfigs[selectedStyle].name}`, 256, 300);
+                    ctx.fillText(`风格: ${selectedStyle.name}`, 256, 300);
                     
                     const testImageData = canvas.toDataURL('image/png');
                     showResult(testImageData);
@@ -574,7 +580,7 @@
                     const base64Data = await fileToBase64(selectedFile);
                     
                     // 准备请求数据
-                    const styleConfig = styleConfigs[selectedStyle];
+                    const styleConfig = selectedStyle;
                     const requestData = {
                         req_key: styleConfig.reqKey,
                         binary_data_base64: [base64Data],
@@ -601,7 +607,22 @@
                 
             } catch (error) {
                 console.error('生成失败:', error);
-                showError('生成失败: ' + error.message);
+                
+                // 根据错误类型提供更具体的提示
+                let errorMessage = '生成失败: ';
+                if (error.message.includes('reqKey')) {
+                    errorMessage += '风格配置错误，请重新选择风格';
+                } else if (error.message.includes('网络') || error.message.includes('fetch')) {
+                    errorMessage += '网络连接失败，请检查网络连接';
+                } else if (error.message.includes('CORS')) {
+                    errorMessage += '跨域请求被阻止，请在服务器环境下运行';
+                } else if (error.message.includes('API')) {
+                    errorMessage += 'API调用失败，请检查密钥配置';
+                } else {
+                    errorMessage += error.message;
+                }
+                
+                showError(errorMessage);
             } finally {
                 showLoading(false);
             }
