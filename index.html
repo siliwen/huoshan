@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>火山引擎图像风格化</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .upload-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+            border: 2px dashed #dee2e6;
+            transition: all 0.3s ease;
+        }
+
+        .upload-section:hover {
+            border-color: #667eea;
+            background: #f0f2ff;
+        }
+
+        .upload-section.dragover {
+            border-color: #667eea;
+            background: #e8ecff;
+            transform: scale(1.02);
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .preview-container {
+            margin: 20px 0;
+            display: none;
+        }
+
+        .preview-image {
+            max-width: 300px;
+            max-height: 300px;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .style-section {
+            margin-bottom: 30px;
+        }
+
+        .style-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .style-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .style-option {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .style-option:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .style-option.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .style-option input[type="radio"] {
+            display: none;
+        }
+
+        .generate-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 25px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: block;
+            margin: 30px auto;
+            min-width: 200px;
+        }
+
+        .generate-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(40, 167, 69, 0.3);
+        }
+
+        .generate-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result-section {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .result-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .result-image {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(23, 162, 184, 0.3);
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .config-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .config-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            gap: 15px;
+        }
+
+        .config-row label {
+            min-width: 120px;
+            font-weight: 500;
+        }
+
+        .config-row input, .config-row select {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 20px;
+            }
+            
+            .style-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .config-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .config-row label {
+                min-width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 火山引擎图像风格化</h1>
+            <p>基于AI技术，将您的图片转换为各种艺术风格</p>
+        </div>
+
+        <div class="main-content">
+            <!-- 配置区域 -->
+            <div class="config-section">
+                <h3>🔧 API配置</h3>
+                <div class="config-row">
+                    <label for="accessKey">Access Key:</label>
+                    <input type="text" id="accessKey" placeholder="请输入您的Access Key">
+                </div>
+                <div class="config-row">
+                    <label for="secretKey">Secret Key:</label>
+                    <input type="password" id="secretKey" placeholder="请输入您的Secret Key">
+                </div>
+                <div class="config-row">
+                    <label for="region">Region:</label>
+                    <select id="region">
+                        <option value="cn-north-1">cn-north-1</option>
+                    </select>
+                </div>
+                <div class="config-row">
+                    <label for="testMode">测试模式:</label>
+                    <input type="checkbox" id="testMode" style="width: auto;">
+                    <span style="font-size: 0.9rem; color: #666; margin-left: 10px;">启用测试模式（无需真实API密钥）</span>
+                </div>
+            </div>
+
+            <!-- 图片上传区域 -->
+            <div class="upload-section" id="uploadSection">
+                <h3>📸 上传图片</h3>
+                <p>支持 JPG、JPEG、PNG 格式，最大 5MB，分辨率 600×800 到 4096×4096</p>
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    选择图片
+                </button>
+                <input type="file" id="fileInput" class="file-input" accept=".jpg,.jpeg,.png">
+                <p>或拖拽图片到此区域</p>
+                
+                <div class="preview-container" id="previewContainer">
+                    <img id="previewImage" class="preview-image" alt="预览图片">
+                </div>
+            </div>
+
+            <!-- 风格选择区域 -->
+            <div class="style-section">
+                <h3>🎭 选择风格</h3>
+                <div class="style-grid" id="styleGrid">
+                    <!-- 风格选项将通过JavaScript动态生成 -->
+                </div>
+            </div>
+
+            <!-- 生成按钮 -->
+            <button class="generate-btn" id="generateBtn" disabled>
+                🚀 开始生成
+            </button>
+
+            <!-- 加载状态 -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>正在生成风格化图片，请稍候...</p>
+            </div>
+
+            <!-- 错误信息 -->
+            <div class="error-message" id="errorMessage"></div>
+
+            <!-- 结果展示区域 -->
+            <div class="result-section" id="resultSection">
+                <h3>✨ 生成结果</h3>
+                <img id="resultImage" class="result-image" alt="生成结果">
+                <br>
+                <button class="download-btn" id="downloadBtn">
+                    💾 下载图片
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 风格配置数据
+        const styleConfigs = [
+            { name: '网红日漫风', reqKey: 'img2img_ghibli_style', subReqKey: '' },
+            { name: '3D风', reqKey: 'img2img_disney_3d_style', subReqKey: '' },
+            { name: '写实风', reqKey: 'img2img_real_mix_style', subReqKey: '' },
+            { name: '天使风', reqKey: 'img2img_pastel_boys_style', subReqKey: '' },
+            { name: '动漫风', reqKey: 'img2img_cartoon_style', subReqKey: '' },
+            { name: '日漫风', reqKey: 'img2img_makoto_style', subReqKey: '' },
+            { name: '公主风', reqKey: 'img2img_rev_animated_style', subReqKey: '' },
+            { name: '梦幻风', reqKey: 'img2img_blueline_style', subReqKey: '' },
+            { name: '水墨风', reqKey: 'img2img_water_ink_style', subReqKey: '' },
+            { name: '新莫奈花园', reqKey: 'i2i_ai_create_monet', subReqKey: '' },
+            { name: '水彩风', reqKey: 'img2img_water_paint_style', subReqKey: '' },
+            { name: '莫奈花园', reqKey: 'img2img_comic_style', subReqKey: 'img2img_comic_style_monet' },
+            { name: '精致美漫', reqKey: 'img2img_comic_style', subReqKey: 'img2img_comic_style_marvel' },
+            { name: '赛博机械', reqKey: 'img2img_comic_style', subReqKey: 'img2img_comic_style_future' },
+            { name: '精致韩漫', reqKey: 'img2img_exquisite_style', subReqKey: '' },
+            { name: '国风-水墨', reqKey: 'img2img_pretty_style', subReqKey: 'img2img_pretty_style_ink' },
+            { name: '浪漫光影', reqKey: 'img2img_pretty_style', subReqKey: 'img2img_pretty_style_light' },
+            { name: '陶瓷娃娃', reqKey: 'img2img_ceramics_style', subReqKey: '' },
+            { name: '中国红', reqKey: 'img2img_chinese_style', subReqKey: '' },
+            { name: '丑萌粘土', reqKey: 'img2img_clay_style', subReqKey: 'img2img_clay_style_3d' },
+            { name: '可爱玩偶', reqKey: 'img2img_clay_style', subReqKey: 'img2img_clay_style_bubble' },
+            { name: '3D-游戏_Z时代', reqKey: 'img2img_3d_style', subReqKey: 'img2img_3d_style_era' },
+            { name: '动画电影', reqKey: 'img2img_3d_style', subReqKey: 'img2img_3d_style_movie' },
+            { name: '玩偶', reqKey: 'img2img_3d_style', subReqKey: 'img2img_3d_style_doll' }
+        ];
+
+        let selectedFile = null;
+        let selectedStyle = null;
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeStyleGrid();
+            initializeFileUpload();
+            initializeEventListeners();
+        });
+
+        // 初始化风格选择网格
+        function initializeStyleGrid() {
+            const styleGrid = document.getElementById('styleGrid');
+            
+            styleConfigs.forEach((style, index) => {
+                const styleOption = document.createElement('div');
+                styleOption.className = 'style-option';
+                styleOption.innerHTML = `
+                    <input type="radio" name="style" value="${index}" id="style${index}">
+                    <label for="style${index}">${style.name}</label>
+                `;
+                
+                styleOption.addEventListener('click', () => selectStyle(index, styleOption));
+                styleGrid.appendChild(styleOption);
+            });
+        }
+
+        // 选择风格
+        function selectStyle(index, element) {
+            // 移除其他选中状态
+            document.querySelectorAll('.style-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            // 设置当前选中
+            element.classList.add('selected');
+            element.querySelector('input').checked = true;
+            selectedStyle = styleConfigs[index];
+            
+            updateGenerateButton();
+        }
+
+        // 初始化文件上传
+        function initializeFileUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const uploadSection = document.getElementById('uploadSection');
+            
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // 拖拽上传
+            uploadSection.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadSection.classList.add('dragover');
+            });
+            
+            uploadSection.addEventListener('dragleave', () => {
+                uploadSection.classList.remove('dragover');
+            });
+            
+            uploadSection.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadSection.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFile(files[0]);
+                }
+            });
+        }
+
+        // 处理文件选择
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        // 处理文件
+        function handleFile(file) {
+            // 验证文件类型
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+            if (!allowedTypes.includes(file.type)) {
+                showError('请选择 JPG、JPEG 或 PNG 格式的图片');
+                return;
+            }
+            
+            // 验证文件大小 (5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                showError('图片文件大小不能超过 5MB');
+                return;
+            }
+            
+            selectedFile = file;
+            
+            // 显示预览
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const previewImage = document.getElementById('previewImage');
+                const previewContainer = document.getElementById('previewContainer');
+                
+                previewImage.src = e.target.result;
+                previewContainer.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+            
+            updateGenerateButton();
+        }
+
+        // 更新生成按钮状态
+        function updateGenerateButton() {
+            const generateBtn = document.getElementById('generateBtn');
+            const accessKey = document.getElementById('accessKey').value.trim();
+            const secretKey = document.getElementById('secretKey').value.trim();
+            const testMode = document.getElementById('testMode').checked;
+            
+            if (selectedFile && selectedStyle && (testMode || (accessKey && secretKey))) {
+                generateBtn.disabled = false;
+            } else {
+                generateBtn.disabled = true;
+            }
+        }
+
+        // 初始化事件监听器
+        function initializeEventListeners() {
+            document.getElementById('generateBtn').addEventListener('click', generateStyleImage);
+            document.getElementById('downloadBtn').addEventListener('click', downloadResult);
+            document.getElementById('accessKey').addEventListener('input', updateGenerateButton);
+            document.getElementById('secretKey').addEventListener('input', updateGenerateButton);
+            document.getElementById('testMode').addEventListener('change', updateGenerateButton);
+        }
+
+        // 生成风格化图片
+        async function generateStyleImage() {
+            if (!selectedFile || !selectedStyle) {
+                showError('请选择图片和风格');
+                return;
+            }
+
+            const accessKey = document.getElementById('accessKey').value.trim();
+            const secretKey = document.getElementById('secretKey').value.trim();
+            const testMode = document.getElementById('testMode').checked;
+
+            if (!testMode && (!accessKey || !secretKey)) {
+                showError('请填写 Access Key 和 Secret Key，或启用测试模式');
+                return;
+            }
+
+            showLoading(true);
+            hideError();
+            hideResult();
+
+            try {
+                if (testMode) {
+                    // 测试模式：模拟API响应
+                    console.log('测试模式：模拟生成过程');
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // 模拟2秒处理时间
+                    
+                    // 创建一个简单的测试图像（彩色方块）
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 512;
+                    canvas.height = 512;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // 绘制渐变背景
+                    const gradient = ctx.createLinearGradient(0, 0, 512, 512);
+                    gradient.addColorStop(0, '#ff6b6b');
+                    gradient.addColorStop(0.5, '#4ecdc4');
+                    gradient.addColorStop(1, '#45b7d1');
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, 512, 512);
+                    
+                    // 添加文字
+                    ctx.fillStyle = 'white';
+                    ctx.font = '24px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('测试模式', 256, 256);
+                    ctx.fillText(`风格: ${styleConfigs[selectedStyle].name}`, 256, 300);
+                    
+                    const testImageData = canvas.toDataURL('image/png');
+                    showResult(testImageData);
+                } else {
+                    // 真实API调用
+                    const base64Data = await fileToBase64(selectedFile);
+                    
+                    // 准备请求数据
+                    const styleConfig = styleConfigs[selectedStyle];
+                    const requestData = {
+                        req_key: styleConfig.reqKey,
+                        binary_data_base64: [base64Data],
+                        return_url: true
+                    };
+
+                    // 如果有 sub_req_key，添加到请求中
+                    if (styleConfig.subReqKey) {
+                        requestData.sub_req_key = styleConfig.subReqKey;
+                    }
+
+                    // 注意：这里需要实际的API调用实现
+                    // 由于涉及到签名算法，这里提供一个模拟的实现
+                    const result = await callVolcEngineAPI(requestData, accessKey, secretKey);
+                    
+                    if (result.data && result.data.image_urls && result.data.image_urls.length > 0) {
+                        showResult(result.data.image_urls[0]);
+                    } else if (result.data && result.data.binary_data_base64 && result.data.binary_data_base64.length > 0) {
+                        showResult('data:image/png;base64,' + result.data.binary_data_base64[0]);
+                    } else {
+                        throw new Error('API返回数据格式错误');
+                    }
+                }
+                
+            } catch (error) {
+                console.error('生成失败:', error);
+                showError('生成失败: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 文件转Base64
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    // 移除 data:image/xxx;base64, 前缀
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // 调用火山引擎API的函数将在下面的script标签中重新定义
+
+        // 显示结果
+        function showResult(imageUrl) {
+            const resultImage = document.getElementById('resultImage');
+            const resultSection = document.getElementById('resultSection');
+            
+            resultImage.src = imageUrl;
+            resultSection.style.display = 'block';
+            
+            // 滚动到结果区域
+            resultSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // 下载结果
+        function downloadResult() {
+            const resultImage = document.getElementById('resultImage');
+            const link = document.createElement('a');
+            link.download = 'stylized_image.png';
+            link.href = resultImage.src;
+            link.click();
+        }
+
+        // 显示/隐藏加载状态
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            loading.style.display = show ? 'block' : 'none';
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+
+        // 隐藏错误信息
+        function hideError() {
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.style.display = 'none';
+        }
+
+        // 隐藏结果
+        function hideResult() {
+            const resultSection = document.getElementById('resultSection');
+            resultSection.style.display = 'none';
+        }
+    </script>
+    
+    <!-- 引入火山引擎API实现 -->
+    <script src="volcengine-api.js"></script>
+    <script>
+        // 更新API调用函数，使用真实的火山引擎API
+        async function callVolcEngineAPI(requestData, accessKey, secretKey) {
+            try {
+                const client = new ImageStyleClient(accessKey, secretKey);
+                
+                const result = await client.styleImage({
+                    reqKey: requestData.req_key,
+                    subReqKey: requestData.sub_req_key || '',
+                    base64Data: requestData.binary_data_base64[0],
+                    returnUrl: requestData.return_url || true,
+                    logoInfo: requestData.logo_info || null,
+                    aigcMeta: requestData.aigc_meta || null
+                });
+
+                return result;
+            } catch (error) {
+                console.error('API调用错误:', error);
+                throw new Error(`API调用失败: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>
