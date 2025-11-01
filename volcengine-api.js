@@ -4,13 +4,15 @@
  */
 
 class VolcEngineAPI {
-    constructor(accessKey, secretKey, region = 'cn-north-1') {
+    constructor(accessKey, secretKey, region = 'cn-north-1', useProxy = false) {
         this.accessKey = accessKey;
         this.secretKey = secretKey;
         this.region = region;
         this.service = 'cv';
         this.host = 'visual.volcengineapi.com';
         this.endpoint = `https://${this.host}`;
+        this.useProxy = useProxy;
+        this.proxyUrl = 'http://localhost:3001/proxy/volcengine';
     }
 
     /**
@@ -35,24 +37,71 @@ class VolcEngineAPI {
             const url = this.endpoint + path + '?' + new URLSearchParams(queryParams).toString();
             console.log('请求URL:', url);
             
-            // 检查是否在HTTPS环境中
-            if (location.protocol === 'file:' || location.protocol === 'http:') {
-                throw new Error('由于浏览器安全限制，需要在HTTPS环境下调用API。请使用本地服务器或部署到HTTPS站点。');
-            }
+            let response;
             
-            const response = await fetch(url, {
-                method: method,
-                headers: headers,
-                body: JSON.stringify(requestData),
-                mode: 'cors'
-            });
+            if (this.useProxy) {
+                // 使用代理模式
+                console.log('使用代理模式调用API');
+                response = await fetch(this.proxyUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        targetUrl: url,
+                        headers: headers,
+                        data: requestData
+                    })
+                });
+            } else {
+                // 直接调用（可能遇到CORS问题）
+                console.log('直接调用API');
+                if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+                    console.warn('检测到本地环境，可能遇到CORS问题。建议启用代理模式。');
+                }
+                
+                response = await fetch(url, {
+                    method: method,
+                    headers: headers,
+                    body: JSON.stringify(requestData),
+                    mode: 'cors',
+                    credentials: 'omit',
+                    cache: 'no-cache'
+                });
+            }
 
             console.log('响应状态:', response.status, response.statusText);
+            console.log('响应头:', Object.fromEntries(response.headers.entries()));
 
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error('API错误响应:', errorText);
-                throw new Error(`HTTP ${response.status}: ${errorText}`);
+                // 记录响应头信息用于调试
+                console.log('Response Headers:', Object.fromEntries(response.headers.entries()));
+                
+                // 尝试获取错误响应的详细信息
+                let errorDetails = '';
+                try {
+                    const errorText = await response.text();
+                    console.log('Error Response Body:', errorText);
+                    
+                    // 尝试解析JSON错误信息
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        errorDetails = errorJson.message || errorJson.error || errorText;
+                    } catch {
+                        errorDetails = errorText;
+                    }
+                } catch (e) {
+                    console.log('无法读取错误响应体:', e);
+                }
+                
+                console.error('API错误响应:', errorDetails);
+                console.error('请求详情:', {
+                    url: url,
+                    method: method,
+                    headers: headers,
+                    body: JSON.stringify(requestData, null, 2)
+                });
+                throw new Error(`HTTP ${response.status}: ${response.statusText}${errorDetails ? ' - ' + errorDetails : ''}`);
             }
 
             const result = await response.json();
@@ -263,8 +312,8 @@ class VolcEngineAPI {
  * 图像风格化客户端
  */
 class ImageStyleClient {
-    constructor(accessKey, secretKey, region = 'cn-north-1') {
-        this.api = new VolcEngineAPI(accessKey, secretKey, region);
+    constructor(accessKey, secretKey, region = 'cn-north-1', useProxy = false) {
+        this.api = new VolcEngineAPI(accessKey, secretKey, region, useProxy);
     }
 
     /**

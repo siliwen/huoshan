@@ -39,6 +39,13 @@
             margin-bottom: 10px;
         }
 
+        .version {
+            font-size: 1rem;
+            opacity: 0.8;
+            font-weight: normal;
+            margin-left: 10px;
+        }
+
         .header p {
             font-size: 1.1rem;
             opacity: 0.9;
@@ -281,7 +288,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎨 火山引擎图像风格化</h1>
+            <h1>🎨 火山引擎图像风格化 <span class="version">v0.01</span></h1>
             <p>基于AI技术，将您的图片转换为各种艺术风格</p>
         </div>
 
@@ -307,6 +314,17 @@
                     <label for="testMode">测试模式:</label>
                     <input type="checkbox" id="testMode" style="width: auto;">
                     <span style="font-size: 0.9rem; color: #666; margin-left: 10px;">启用测试模式（无需真实API密钥）</span>
+                </div>
+                <div class="config-row">
+                    <label for="proxyMode">代理模式:</label>
+                    <input type="checkbox" id="proxyMode" style="width: auto;">
+                    <span style="font-size: 0.9rem; color: #666; margin-left: 10px;">启用CORS代理（解决跨域问题）</span>
+                </div>
+                <div class="config-row">
+                    <button onclick="testAPIConnection()" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                        测试API连接
+                    </button>
+                    <span style="font-size: 0.9rem; color: #666; margin-left: 10px;">测试API密钥和连接状态</span>
                 </div>
             </div>
 
@@ -672,10 +690,21 @@
         }
 
         // 显示错误信息
-        function showError(message) {
+        function showError(message, type = 'error') {
             const errorMessage = document.getElementById('errorMessage');
             errorMessage.textContent = message;
             errorMessage.style.display = 'block';
+            
+            // 根据类型设置样式
+            if (type === 'success') {
+                errorMessage.style.backgroundColor = '#d4edda';
+                errorMessage.style.color = '#155724';
+                errorMessage.style.borderColor = '#c3e6cb';
+            } else {
+                errorMessage.style.backgroundColor = '#f8d7da';
+                errorMessage.style.color = '#721c24';
+                errorMessage.style.borderColor = '#f5c6cb';
+            }
         }
 
         // 隐藏错误信息
@@ -697,7 +726,8 @@
         // 更新API调用函数，使用真实的火山引擎API
         async function callVolcEngineAPI(requestData, accessKey, secretKey) {
             try {
-                const client = new ImageStyleClient(accessKey, secretKey);
+                const proxyMode = document.getElementById('proxyMode').checked;
+                const client = new ImageStyleClient(accessKey, secretKey, 'cn-north-1', proxyMode);
                 
                 const result = await client.styleImage({
                     reqKey: requestData.req_key,
@@ -712,6 +742,64 @@
             } catch (error) {
                 console.error('API调用错误:', error);
                 throw new Error(`API调用失败: ${error.message}`);
+            }
+        }
+
+        // 测试API连接函数
+        async function testAPIConnection() {
+            const accessKey = document.getElementById('accessKey').value;
+            const secretKey = document.getElementById('secretKey').value;
+            const proxyMode = document.getElementById('proxyMode').checked;
+
+            if (!accessKey || !secretKey) {
+                showError('请先填写Access Key和Secret Key');
+                return;
+            }
+
+            showLoading();
+            hideError();
+
+            try {
+                console.log('开始测试API连接...');
+                
+                // 创建一个简单的测试请求
+                const testData = {
+                    req_key: 'img2img_anime_accelerated',  // 使用一个常见的风格
+                    binary_data_base64: ['iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='], // 1x1像素的透明PNG
+                    return_url: true
+                };
+
+                const client = new ImageStyleClient(accessKey, secretKey, 'cn-north-1', proxyMode);
+                
+                console.log('发送测试请求...');
+                const result = await client.styleImage({
+                    reqKey: testData.req_key,
+                    base64Data: testData.binary_data_base64[0],
+                    returnUrl: testData.return_url
+                });
+
+                console.log('API测试成功:', result);
+                hideLoading();
+                showError('✅ API连接测试成功！', 'success');
+                
+            } catch (error) {
+                console.error('API测试失败:', error);
+                hideLoading();
+                
+                let errorMessage = 'API连接测试失败: ' + error.message;
+                
+                // 根据错误类型提供更具体的建议
+                if (error.message.includes('CORS')) {
+                    errorMessage += '\n建议：启用代理模式来解决跨域问题';
+                } else if (error.message.includes('400')) {
+                    errorMessage += '\n建议：检查API密钥是否正确，或者风格参数是否有效';
+                } else if (error.message.includes('401') || error.message.includes('403')) {
+                    errorMessage += '\n建议：检查Access Key和Secret Key是否正确';
+                } else if (error.message.includes('网络')) {
+                    errorMessage += '\n建议：检查网络连接或防火墙设置';
+                }
+                
+                showError(errorMessage);
             }
         }
     </script>
